@@ -9,24 +9,33 @@
     <script type='text/javascript' src='javascripts/jquery-1.2.3.min.js'></script>
     <script type='text/javascript' src='javascripts/application.js'></script>
     <style type='text/css'>
-    	
+      #tree { }
+        #tree ul { }
+        #tree li { }
+        #tree .item { cursor: pointer; cursor: hand; }
+        #tree .selected { background-color: green; }
+        #tree .drop-target-valid { background-color: blue; }
+        #tree .drop-target-invalid { background-color: red; }
+        #drag-badge { position: absolute; width: 32px; height: 11px; padding: 11px 0 10px 0; background: url(red-ball.png); color: white; font-weight: bold; font: bold 11px/1 Helvetica, sans-serif; text-align: center; }
     </style>
   </head>
   <body>
     <div id='container'>
       
-      <ul id='tree'>
-      	<li>Item 1</li>
-      	<li>Item 2</li>
-      	<li>Item 3
-      		<ul>
-      			<li>Sub item 1</li>
-      			<li>Sub item 2</li>
-      			<li>Sub item 3</li>
-      		</ul>
-      	</li>
-      	<li>Item 4</li>
-      </ul>
+      <div id='tree'>
+        <ul>
+        	<li><div class='item'>Item 1</div></li>
+        	<li><div class='item'>Item 2</div></li>
+        	<li><div class='item'>Item 3</div>
+        		<ul>
+        			<li><div class='item'>Sub item 1</div></li>
+        			<li><div class='item'>Sub item 2</div></li>
+        			<li><div class='item'>Sub item 3</div></li>
+        		</ul>
+        	</li>
+        	<li><div class='item'>Item 4</div></li>
+        </ul>
+      </div>
       
     </div>
   </body>
