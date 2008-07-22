@@ -4,10 +4,9 @@ function DragWidget(root) {
 	
 	this.root           = root;
 	this.dragState      = 'off';
-	this.dragStart      = null;
+	this.locked			= false;
 	
 	this.attachBehaviours(root);
-	
 	this.dragBadge = $('<div id="drag-badge"></div>').hide().appendTo(document.body);
 	
 	$(this.root).mousemove(function(evt) {
@@ -17,21 +16,40 @@ function DragWidget(root) {
 }
 
 DragWidget.prototype = {
-    hasSelection: function() {
-        return $this.getSelection().length > 0;
+	
+	//
+	// Locking
+	
+	lock: function() { this.locked = true; },
+	unlock: function() { this.locked = false; },
+	isLocked: function() { return this.locked; },
+	
+	//
+	// Selections
+	
+	hasSelection: function() {
+        return this.getSelection().length > 0;
     },
+
 	getSelection: function() {
 		return $('.item.selected', this.root);
 	},
+	
 	clearSelection: function() {
 		$('.item', this.root).removeClass('selected');
 	},
+	
 	makeSelected: function(ele) {
 	    $(ele).addClass('selected');
 	},
+	
 	toggleSelected: function(ele) {
 		$(ele).toggleClass('selected');
 	},
+	
+	//
+	// Mojo
+	
     attachBehaviours: function(root) {
 	    
 	    var self = this;
@@ -51,11 +69,12 @@ DragWidget.prototype = {
                 }
             }
     	}, function() {
-    	    $(this).removeClass('drop-target-valid');
-    	    $(this).removeClass('drop-target-invalid');
+    	    $(this).removeClass('drop-target-valid')
+				   .removeClass('drop-target-invalid');
     	});
 
     	$('.item', this.root).mousedown(function(evt) {
+			if (self.isLocked()) return;
     	    if (!evt.metaKey) self.clearSelection();
 	        self.toggleSelected(this);
     	    self.dragState = 'waiting';
@@ -74,15 +93,19 @@ DragWidget.prototype = {
         });
 
     	$('.item', this.root).mouseup(function(evt) {
+			var target = this;
     	    if (self.dragState == 'active') {
-    	        if (self.nodeAcceptsDrop(self.nodeFor(this))) {
-    	            var target = $('+ ul', this);
-    	            if (!target.length) target = $('<ul></ul>').insertAfter(this);
-    	            $.each(self.getSelection(), function(ele) {
-                       $(this).parents('li:eq(0)').appendTo(target);
-                    });
-                    self.clearSelection();
-    	        }
+    	        if (self.nodeAcceptsDrop(self.nodeFor(target))) {
+					var success = function() {
+						var targetList = $('+ ul', target);
+						if (!targetList.length) targetList = $('<ul></ul>').insertAfter(target);
+						$.each(self.getSelection(), function(ele) {
+							$(this).parents('li:eq(0)').appendTo(targetList);
+						});
+						self.clearSelection();
+					}
+					self.dropWillOccur(self.nodeFor(target), success);
+				}
     	        self.dragBadge.hide();
     	    }
     	    self.dragState = 'off';
@@ -146,12 +169,35 @@ DragWidget.prototype = {
             }
         }
         return true;
+	},
+	
+	//
+	// User-overridable event hooks
+	
+	/**
+	 * called when items have been dropped onto a node, after a nodeAcceptsDrop
+	 * test has been passed. a success function is supplied in order to commit
+	 * the drop; this enables asynchronous (e.g. ajax) operation.
+	 * if for some reason the drop fails, simply don't call success() and the
+	 * nodes will remain where they are.
+	 *
+	 * if you're going to do anything that takes a significant amount of time
+	 * it's probably best to lock() the widget - remember to unlock() after...
+	 *
+	 * it is permissible to modify the selection in this function. this is useful,
+	 * say, in the case of an ajax update which partially succeeds.
+	 *
+	 * @param targetNode node that selection has been dropped onto
+	 * @param success call this function to commit the drop
+	 */
+	dropWillOccur: function(targetNode, success) {
+		success();
 	}
+	
 }
 
 $(function() {
 
 	new DragWidget(document.getElementById('tree'));
 
-		
 });
