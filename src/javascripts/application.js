@@ -4,7 +4,7 @@ function DragWidget(root) {
     
     this.root           = root;
     this.dragState      = 'off';
-    this.locked         = false;
+    this.locked         = 0;
     
     this.attachBehaviours(root);
     this.dragBadge = $('<div id="drag-badge"></div>').hide().appendTo(document.body);
@@ -20,9 +20,9 @@ DragWidget.prototype = {
     //
     // Locking
     
-    lock: function() { this.locked = true; },
-    unlock: function() { this.locked = false; },
-    isLocked: function() { return this.locked; },
+    lock: function() { this.locked++; },
+    unlock: function() { this.locked--; },
+    isLocked: function() { return this.locked > 0; },
     
     //
     // Selections
@@ -54,12 +54,14 @@ DragWidget.prototype = {
         
         var self = this;
         
+        // Disable text selection
         $('.item', root).each(function() {
            this.onselectstart = function() { return false; };
            this.unselectable = 'on';
            this.style.MozUserSelect = 'none';
         });
         
+        // Highlight drop validity on hover
         $('.item', root).hover(function() {
             if (self.dragState == 'active') {
                 if (self.nodeAcceptsDrop(self.nodeFor(this))) {
@@ -73,7 +75,8 @@ DragWidget.prototype = {
                    .removeClass('drop-target-invalid');
         });
 
-        $('.item', this.root).mousedown(function(evt) {
+        // Mouse down for drag start + add to selection
+        $('.item', root).mousedown(function(evt) {
             if (self.isLocked()) return;
             if (!evt.metaKey) self.clearSelection();
             self.toggleSelected(this);
@@ -81,7 +84,8 @@ DragWidget.prototype = {
             self.dragStart = [evt.pageX, evt.pageY];
         });
         
-        $('.item', this.root).mousemove(function(evt) {
+        // Drag start on mouse move
+        $('.item', root).mousemove(function(evt) {
             if (self.dragState == 'waiting') {
                 var dx = Math.abs(evt.pageX - self.dragStart[0]);
                 var dy = Math.abs(evt.pageY - self.dragStart[1]);
@@ -92,23 +96,35 @@ DragWidget.prototype = {
             }
         });
 
-        $('.item', this.root).mouseup(function(evt) {
+        // Drop
+        $('.item', root).mouseup(function(evt) {
             var target = this;
             if (self.dragState == 'active') {
-                if (self.nodeAcceptsDrop(self.nodeFor(target))) {
-                    var success = function() {
-                        var targetList = $('+ ul', target);
-                        if (!targetList.length) targetList = $('<ul></ul>').insertAfter(target);
-                        $.each(self.getSelection(), function(ele) {
-                            $(this).parents('li:eq(0)').appendTo(targetList);
+                self.loadChildrenFor(target, function(targetList) {
+                    if (self.nodeAcceptsDrop(self.nodeFor(target))) {
+                        self.dropWillOccur(self.nodeFor(target), function() {
+                            targetList.show();
+                            $.each(self.getSelection(), function(ele) {
+                                $(this).parents('li:eq(0)').appendTo(targetList);
+                            });
+                            self.clearSelection();
                         });
-                        self.clearSelection();
                     }
-                    self.dropWillOccur(self.nodeFor(target), success);
-                }
+                });
                 self.dragBadge.hide();
             }
             self.dragState = 'off';
+        });
+        
+        // Prevent mousedown on expander from bubbling to select row
+        $('.expander', root).mousedown(function(evt) { evt.stopPropagation(); });
+        
+        // Toggle expansion
+        $('.expander', root).click(function(evt) {
+            var node = $(this).parents('.item:eq(0)')[0];
+            self.loadChildrenFor(node, function(childList) {
+                childList.toggle();
+            });
         });
         
     },
@@ -122,6 +138,25 @@ DragWidget.prototype = {
     
     //
     // Node functions
+    
+    // ensure a node's children are loaded, firing callback on completion
+    // callback will receive jQuery object wrapping entire child list
+    loadChildrenFor: function(node, after) {
+        var self = this, childList = $('+ ul', node);
+        if (childList.length == 0) {
+            this.nodeLoadChildren(this.nodeFor(node), function(html) {
+                childList = $('<ul style="display:none"></ul>').append(html).insertAfter(node);
+                self.attachBehaviours(childList);
+                if (after) after(childList);
+            });
+        } else if (after) {
+            after(childList);
+        }
+    },
+    
+    areNodeChildrenLoaded: function(node) {
+        return $('+ ul', node).length == 1;
+    },
     
     getSelectedNodes: function() {
         return this.nodesFor(this.getSelection());
@@ -169,6 +204,17 @@ DragWidget.prototype = {
             }
         }
         return true;
+    },
+    
+    // implement custom logic for loading child nodes here.
+    // node - parent node for which to load children
+    // after - call this function once you've loaded the children, passing their
+    //         representative HTML. this should be a series of <li>...</li> tags
+    //         with *no* surrounding <ul>...</ul> tags, or an empty string if no
+    //         children exist. you don't need to set up event handlers etc here,
+    //         this will be handled later.
+    nodeLoadChildren: function(node, after) {
+        after('');
     },
     
     //
