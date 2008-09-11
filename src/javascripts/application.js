@@ -103,7 +103,7 @@ DragWidget.prototype = {
                 self.loadChildrenFor(target, function(targetList) {
                     if (self.nodeAcceptsDrop(self.nodeFor(target))) {
                         self.dropWillOccur(self.nodeFor(target), function() {
-                            targetList.show();
+                            self.toggleVisibility(targetList, true);
                             $.each(self.getSelection(), function(ele) {
                                 $(this).parents('li:eq(0)').appendTo(targetList);
                             });
@@ -121,12 +121,23 @@ DragWidget.prototype = {
         
         // Toggle expansion
         $('.expander', root).click(function(evt) {
-            var node = $(this).parents('.item:eq(0)')[0];
+            var expander = $(this), node = $(this).parents('.item:eq(0)')[0];
             self.loadChildrenFor(node, function(childList) {
-                childList.toggle();
+                self.toggleVisibility(childList);
             });
         });
         
+    },
+    
+    toggleVisibility: function(childList, show) {
+        var expander = childList.prev('.item').find('.expander');
+        if (!show && childList.is(':visible')) {
+            childList.hide();
+            expander.removeClass('expanded');
+        } else {
+            childList.show();
+            expander.addClass('expanded');
+        }
     },
     
     updateDragBadge: function(evt) {
